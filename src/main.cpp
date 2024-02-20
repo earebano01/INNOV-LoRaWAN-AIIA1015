@@ -1,74 +1,88 @@
-#include <Arduino.h>
-#include <TinyGPS++.h>
-#include <SPI.h>
-#include <LoRa.h>
-#include <DHT.h>
-#include <MKRWAN.h>
-#include <TimeLib.h> // For daysInMonth() function
+// Inclure les bibliothèques nécessaires
+#include <Arduino.h> // Bibliothèque principale Arduino
+#include <TinyGPS++.h> // Bibliothèque pour manipuler les données GPS
+#include <SPI.h> // Bibliothèque pour la communication SPI
+#include <LoRa.h> // Bibliothèque pour la communication LoRa
+#include <DHT.h> // Bibliothèque pour le capteur de température et d'humidité DHT
+#include <MKRWAN.h> // Bibliothèque pour le module LoRa MKRWAN
+#include <TimeLib.h> // Bibliothèque pour la fonction daysInMonth()
 
-// Define your timezone offset in minutes
-const int timezone_minutes = 240; // For Atlantic Standard Time (AST), 4 hours behind UTC
-// Define your timezone offset in hours
-const int timezone_hours = timezone_minutes / 60;
+// Définir le décalage horaire en minutes
+const int timezone_minutes = 240; // Pour l'heure normale de l'Atlantique (AST), 4 heures de retard par rapport à l'UTC
+// Définir le décalage horaire en heures
+const int timezone_hours = timezone_minutes / 60; // Conversion en heures
 
-LoRaModem modem;
-TinyGPSPlus gps;
+// Initialiser les objets nécessaires
+LoRaModem modem; // Objet pour le module LoRa
+TinyGPSPlus gps; // Objet pour les données GPS
 
-String appEui = "0000000000000000";
-String appKey = "529C0F725A62FB4ED298461F8C6139F2";
+// Définir les identifiants de l'application LoRa
+String appEui = "0000000000000000"; // Identifiant de l'application
+String appKey = "529C0F725A62FB4ED298461F8C6139F2"; // Clé de l'application
 
-#define DHTPIN 2
-#define DHTTYPE DHT11
+// Définir les broches pour le capteur DHT
+#define DHTPIN 2 // Broche de données du capteur DHT
+#define DHTTYPE DHT11 // Type de capteur DHT utilisé
 
-DHT dht(DHTPIN, DHTTYPE);
+DHT dht(DHTPIN, DHTTYPE); // Objet pour le capteur DHT
 
-float hum;
-float temp;
+float hum; // Variable pour stocker l'humidité
+float temp; // Variable pour stocker la température
 
+// Configuration initiale
 void setup() {
-  Serial.begin(9600);
-  Serial1.begin(9600);
-  while (!Serial);
+  Serial.begin(9600); // Initialiser la communication série
+  Serial1.begin(9600); // Initialiser la communication série avec le GPS
+  while (!Serial); // Attendre que le port série soit disponible
 
+  // Initialiser le module LoRa
   if (!modem.begin(US915)) {
     Serial.println("Failed to start module");
-    while (1);
+    while (1); // Boucle infinie en cas d'échec
   }
 
+  // Rejoindre le réseau LoRaWAN
   int connected = modem.joinOTAA(appEui, appKey);
   while (!connected) {
-    Serial.println("Retry...");
+    Serial.println("Retry..."); // Message de réessai
     if (!modem.joinOTAA(appEui, appKey)) {
-      Serial.println("Fail");
+      Serial.println("Fail"); // Message en cas d'échec
     } else {
-      break;
+      break; // Sortir de la boucle si la connexion est réussie
     }
   }
 
-  dht.begin();
+  dht.begin(); // Démarrer le capteur DHT
 }
 
+// Boucle principale
 void loop() {
+  // Lire les données GPS disponibles
   while (Serial1.available() > 0) {
     gps.encode(Serial1.read());
   }
 
+  // Vérifier si les données GPS sont mises à jour
   if (gps.location.isUpdated() && gps.date.isUpdated() && gps.time.isUpdated() && gps.speed.isUpdated() && gps.course.isUpdated()) {
+    // Lire la température et l'humidité du capteur DHT
     temp = dht.readTemperature();
     hum = dht.readHumidity();
 
+    // Vérifier si les lectures du capteur sont valides
     if (isnan(temp) || isnan(hum)) {
-      Serial.println("Failed to read from DHT sensor!");
-      delay(2000);
-      return;
+      Serial.println("Failed to read from DHT sensor!"); // Message d'erreur en cas de lecture invalide
+      delay(2000); // Attendre 2 secondes
+      return; // Sortir de la fonction loop
     }
 
+    // Construire la charge utile pour LoRa
     String payload = String(temp) + "," + String(hum) + "," +
                      String(gps.time.hour() - 4) + ":" + String(gps.time.minute()) + ":" + String(gps.time.second()) + "," +
                      String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6) + "," +
                      String(gps.speed.knots()) + "," + String(gps.course.deg()) + "," +
                      String(gps.date.day()) + "," + String(gps.date.month()) + "," + String(gps.date.year());
 
+    // Afficher les données sur le moniteur série
     Serial.print("\n===================\n");
     Serial.print("DATA SENT\n");
     Serial.print("===================\n");
@@ -90,14 +104,15 @@ void loop() {
     Serial.print(gps.date.month());
     Serial.print("/");
     Serial.println(gps.date.year());
-    delay(5000);
+    delay(5000); // Attendre 5 secondes
 
+    // Envoyer la charge utile via LoRa
     modem.beginPacket();
     modem.print(payload);
     if (modem.endPacket() == false) {
-      Serial.println("Error sending packet");
+      Serial.println("Error sending packet"); // Message en cas d'échec d'envoi
     }
 
-    delay(5000);
+    delay(5000); // Attendre 5 secondes
   }
 }
