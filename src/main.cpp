@@ -5,7 +5,7 @@
 #include <LoRa.h> // Bibliothèque pour la communication LoRa
 #include <DHT.h> // Bibliothèque pour le capteur de température et d'humidité DHT
 #include <MKRWAN.h> // Bibliothèque pour le module LoRa MKRWAN
-#include <TimeLib.h> // Bibliothèque pour la fonction daysInMonth()
+// #include <TimeLib.h> // Bibliothèque pour la fonction daysInMonth()
 
 // Définir le décalage horaire en minutes
 const int timezone_minutes = 240; // Pour l'heure normale de l'Atlantique (AST), 4 heures de retard par rapport à l'UTC
@@ -17,8 +17,8 @@ LoRaModem modem; // Objet pour le module LoRa
 TinyGPSPlus gps; // Objet pour les données GPS
 
 // Définir les identifiants de l'application LoRa
-String appEui = "0000000000000000"; // Identifiant de l'application
-String appKey = "529C0F725A62FB4ED298461F8C6139F2"; // Clé de l'application
+String appEui = ""; // Identifiant de l'application
+String appKey = ""; // Clé de l'application
 
 // Définir les broches pour le capteur DHT
 #define DHTPIN 2 // Broche de données du capteur DHT
@@ -33,7 +33,7 @@ float temp; // Variable pour stocker la température
 void setup() {
   Serial.begin(9600); // Initialiser la communication série
   Serial1.begin(9600); // Initialiser la communication série avec le GPS
-  while (!Serial); // Attendre que le port série soit disponible
+  // while (!Serial); // Attendre que le port série soit disponible
 
   // Initialiser le module LoRa
   if (!modem.begin(US915)) {
@@ -74,12 +74,10 @@ void loop() {
       delay(2000); // Attendre 2 secondes
       return; // Sortir de la fonction loop
     }
-
-    // Construire la charge utile pour LoRa
-    String payload = String(temp) + "," + String(hum) + "," +
+    
+    String payload = String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6) + "," +
+                     String(temp) + "," + String(hum) + "," +
                      String(gps.time.hour() - 4) + ":" + String(gps.time.minute()) + ":" + String(gps.time.second()) + "," +
-                     String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6) + "," +
-                     String(gps.speed.knots()) + "," + String(gps.course.deg()) + "," +
                      String(gps.date.day()) + "," + String(gps.date.month()) + "," + String(gps.date.year());
 
     // Afficher les données sur le moniteur série
