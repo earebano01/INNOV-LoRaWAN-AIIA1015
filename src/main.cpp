@@ -20,7 +20,7 @@ unsigned long delayTime;
 
 // Définir les identifiants de l'application LoRa
 String appEui = "0000000000000000"; // Identifiant de l'application
-String appKey = "529C0F725A62FB4ED298461F8C6139F2"; // Clé de l'application
+String appKey = "00000000000000000000000000000000"; // Clé de l'application
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 
